@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ish haqi hisoblash — {{ user.username }}</title>
+<style>
+  :root{--bg:#eef1f5;--panel:#fff;--ink:#1d2733;--muted:#66727f;--line:#dce2ea;--accent:#0b6b5f;
+    --accent2:#0e8a7b;--head:#123a4d;--head2:#1b556e;--input:#fff7db;--input-bd:#e7cf7a;--calc:#eef4fb;
+    --gross:#e2efd6;--net:#c9e3b0;--danger:#c0392b;--chip:#eaf3f1;}
+  *{box-sizing:border-box}html,body{margin:0;height:100%}
+  body{font-family:"Segoe UI",Arial,Tahoma,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  .app{display:grid;grid-template-columns:230px 1fr;grid-template-rows:56px 1fr;height:100vh}
+  header{grid-column:1/3;background:linear-gradient(90deg,var(--head),var(--head2));color:#fff;display:flex;
+    align-items:center;padding:0 18px;gap:14px;box-shadow:0 2px 6px rgba(0,0,0,.15);z-index:5}
+  header .logo{width:32px;height:32px;border-radius:7px;background:var(--accent2);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px}
+  header h1{font-size:16px;margin:0;font-weight:600}
+  header .org{outline:none;border:none;background:transparent;color:#cfe6e2;font-size:12.5px;border-bottom:1px dashed transparent;min-width:200px}
+  header .org:focus{border-bottom:1px dashed #9fd}
+  header .period{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px}
+  header select.pd{background:#0d2f3e;color:#fff;border:1px solid #2c6a80;border-radius:6px;padding:5px 8px;font-size:13px}
+  .savebox{font-size:12px;color:#bfe;min-width:96px;text-align:right}
+  .userbox{display:flex;align-items:center;gap:10px;padding-left:14px;border-left:1px solid #2c6a80;margin-left:4px}
+  .rolechip{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;background:#0e8a7b;color:#fff}
+  .rolechip.viewer{background:#2c6a80}.rolechip.editor{background:#3f8a4a}
+  .userbox a{color:#cfe6e2;text-decoration:none;font-size:12.5px}
+  .userbox a:hover{color:#fff;text-decoration:underline}
+  nav{background:#0f2f3d;color:#c7d6dd;padding:10px 0;overflow:auto}
+  nav .grp{padding:10px 18px 4px;font-size:11px;letter-spacing:.5px;color:#6f95a2;text-transform:uppercase}
+  nav a{display:flex;align-items:center;gap:10px;padding:10px 18px;cursor:pointer;font-size:13.5px;border-left:3px solid transparent;color:#cde0e6;text-decoration:none}
+  nav a:hover{background:#143b4c}
+  nav a.active{background:#16465a;border-left-color:var(--accent2);color:#fff;font-weight:600}
+  nav a .ic{width:18px;text-align:center}
+  nav a .badge{margin-left:auto;background:#1e5266;color:#bfe;border-radius:10px;font-size:11px;padding:1px 8px}
+  main{overflow:auto;padding:18px 20px}
+  .view{display:none}.view.active{display:block}
+  .toolbar{display:flex;align-items:center;gap:9px;margin-bottom:14px;flex-wrap:wrap}
+  .toolbar h2{margin:0 auto 0 0;font-size:18px}
+  .btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:7px;padding:8px 13px;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-weight:600}
+  .btn:hover{background:#f4f7fa}.btn.primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .btn.primary:hover{background:var(--accent2)}.btn.ghost{background:transparent}
+  .tablewrap{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  table{border-collapse:collapse;width:100%;font-size:12.5px;min-width:1100px}
+  thead th{position:sticky;top:0;background:var(--head);color:#fff;font-weight:600;padding:8px 6px;text-align:center;font-size:11.5px;line-height:1.25;border:1px solid #1b556e;z-index:2}
+  tbody td{border:1px solid var(--line);padding:0;text-align:right;height:32px}
+  tbody td.txt{text-align:left}
+  tbody td .cell{padding:4px 7px;height:100%;display:flex;align-items:center;justify-content:flex-end}
+  tbody td.txt .cell{justify-content:flex-start}
+  tbody input,tbody select{width:100%;border:none;background:transparent;font:inherit;text-align:right;padding:6px 7px;outline:none;color:var(--ink)}
+  tbody td.txt input,tbody select{text-align:left}
+  tbody td.inp{background:var(--input)}
+  tbody td.inp input,tbody td.inp select{background:transparent}
+  tbody td.inp:focus-within{background:#fff2b8;box-shadow:inset 0 0 0 2px var(--input-bd)}
+  tbody input:disabled,tbody select:disabled{color:var(--ink);opacity:1;cursor:default}
+  tbody td.calc{background:var(--calc);color:#26506b}
+  tbody td.gross{background:var(--gross);font-weight:700}
+  tbody td.net{background:var(--net);font-weight:700;color:#1c4d15}
+  tbody tr:hover td{background-color:rgba(14,138,123,.06)}
+  tbody tr:hover td.inp{background:#fff2b8}
+  tbody td.idx{text-align:center;color:#8a97a3;background:#f6f8fa;font-size:11px}
+  tbody td.act{text-align:center;background:#f6f8fa}
+  .rowbtn{border:none;background:transparent;cursor:pointer;color:#b0bac4;font-size:15px;padding:2px 5px;border-radius:5px}
+  .rowbtn:hover{color:var(--danger);background:#fde8e5}
+  .rowbtn.slip:hover{color:var(--accent);background:var(--chip)}
+  tfoot td{background:#123a4d;color:#fff;font-weight:700;padding:8px 7px;border:1px solid #1b556e;text-align:right;font-size:12.5px}
+  tfoot td.lbl{text-align:right}tfoot td.g{background:#4e8a3a}tfoot td.n{background:#2f6b1f}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.05);position:relative;overflow:hidden}
+  .kpi .lab{color:var(--muted);font-size:12.5px;font-weight:600}
+  .kpi .val{font-size:23px;font-weight:800;margin-top:6px;letter-spacing:-.5px}
+  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .kpi .strip{position:absolute;left:0;top:0;bottom:0;width:5px}
+  .kpi.k1 .strip{background:#1b556e}.kpi.k2 .strip{background:#4e8a3a}.kpi.k3 .strip{background:#c98a1a}.kpi.k4 .strip{background:#0e8a7b}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:16px}
+  .card h3{margin:0 0 12px;font-size:15px}
+  .sumtable{width:100%;border-collapse:collapse;font-size:13px;min-width:auto}
+  .sumtable th{background:#f2f5f8;color:var(--muted);text-align:right;padding:9px 10px;font-size:12px;border-bottom:2px solid var(--line)}
+  .sumtable th:first-child{text-align:left}
+  .sumtable td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:right}
+  .sumtable td:first-child{text-align:left;font-weight:600}
+  .sumtable tr:last-child td{border-bottom:none;font-weight:800;background:#f7faf6}
+  .bar{height:9px;border-radius:5px;background:#e6ebf0;overflow:hidden;margin-top:6px}
+  .bar>span{display:block;height:100%;border-radius:5px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .hint{background:#f0f7f5;border:1px solid #cfe6e0;border-left:4px solid var(--accent2);border-radius:8px;padding:11px 14px;font-size:12.5px;color:#31564f;margin-bottom:16px;line-height:1.55}
+  .hint b{color:var(--accent)}
+  .hint.ro{background:#f4f6f8;border-left-color:#8a97a3;color:#4a5560}
+  .setrow{display:flex;align-items:center;gap:14px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .setrow:last-child{border-bottom:none}.setrow label{flex:1;font-weight:600}
+  .setrow .desc{flex:1.4;color:var(--muted);font-size:12.5px}
+  .setrow input{width:130px;text-align:right;border:1px solid var(--input-bd);background:var(--input);border-radius:7px;padding:8px 10px;font:inherit;font-weight:700}
+  .pill{font-size:11px;background:var(--chip);color:var(--accent);border-radius:20px;padding:2px 9px;font-weight:700}
+  .modal{position:fixed;inset:0;background:rgba(15,30,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
+  .modal.open{display:flex}
+  .slip{background:#fff;width:520px;max-width:100%;max-height:90vh;overflow:auto;border-radius:12px;padding:26px 30px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .slip h3{margin:0 0 2px;font-size:17px}.slip .muted{color:var(--muted);font-size:12.5px}
+  .slip table{width:100%;min-width:auto;margin-top:16px;font-size:13px}
+  .slip table td{border:none;border-bottom:1px dashed var(--line);padding:7px 2px;height:auto;text-align:right}
+  .slip table td.l{text-align:left;color:var(--muted)}
+  .slip .tot{font-weight:800;font-size:16px;color:var(--accent);border-top:2px solid var(--ink)!important}
+  .slip .sec{margin-top:14px;font-weight:700;color:var(--head2);font-size:13px;border-bottom:2px solid var(--line);padding-bottom:4px}
+  .slip-actions{display:flex;gap:8px;margin-top:20px}
+  @media(max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}nav{grid-row:2;display:flex;overflow-x:auto;padding:6px}nav .grp{display:none}nav a{white-space:nowrap;border-left:none;border-bottom:3px solid transparent}.kpis{grid-template-columns:1fr 1fr}header .org{display:none}}
+  @media print{nav,header,.toolbar,.hint{display:none}.app{display:block;height:auto}main{overflow:visible}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">Σ</div>
+    <div><h1>Ish haqi hisoblash tizimi</h1><input class="org" id="orgName" value="Oliy ta'lim muassasasi"></div>
+    <div class="period">
+      <span>Davr:</span>
+      <select id="month" class="pd"></select>
+      <select id="year" class="pd"></select>
+    </div>
+    <div class="savebox" id="savebox"></div>
+    <div class="userbox">
+      <span class="rolechip {{ user.role }}">{{ {'admin':'Admin','editor':'Muharrir','viewer':"Ko'ruvchi"}[user.role] }}</span>
+      <span style="font-size:12.5px">{{ user.username }}</span>
+      {% if user.role == 'admin' %}<a href="/users">Foydalanuvchilar</a>{% endif %}
+      <a href="/logout">Chiqish ⏻</a>
+    </div>
+  </header>
+
+  <nav id="nav">
+    <div class="grp">Asosiy</div>
+    <a data-view="dash" class="active"><span class="ic">▣</span> Boshqaruv paneli</a>
+    <div class="grp">Bo'limlar</div>
+    <a data-view="teachers"><span class="ic">🎓</span> Professor-o'qituvchilar <span class="badge" id="b-teachers">0</span></a>
+    <a data-view="admin"><span class="ic">🏛</span> Ma'muriyat <span class="badge" id="b-admin">0</span></a>
+    <a data-view="tech"><span class="ic">🔧</span> Texnik xodimlar <span class="badge" id="b-tech">0</span></a>
+    <div class="grp">Tizim</div>
+    <a data-view="settings" id="nav-settings"><span class="ic">⚙</span> Sozlamalar</a>
+  </nav>
+
+  <main>
+    <section class="view active" id="view-dash">
+      <div class="toolbar">
+        <h2>Boshqaruv paneli</h2>
+        <button class="btn" onclick="exportAll()">⬇ Excelga (CSV) eksport</button>
+        <button class="btn ghost" onclick="window.print()">🖨 Chop etish</button>
+      </div>
+      <div class="kpis">
+        <div class="kpi k1"><div class="strip"></div><div class="lab">Jami xodimlar</div><div class="val" id="kpiCount">0</div><div class="sub">3 ta bo'lim bo'yicha</div></div>
+        <div class="kpi k2"><div class="strip"></div><div class="lab">Jami hisoblangan (brutto)</div><div class="val" id="kpiGross">0</div><div class="sub" id="kpiPeriod">—</div></div>
+        <div class="kpi k3"><div class="strip"></div><div class="lab">Jami ushlanmalar</div><div class="val" id="kpiDed">0</div><div class="sub">soliq + INPS + kasaba + avans</div></div>
+        <div class="kpi k4"><div class="strip"></div><div class="lab">Qo'lga tegadigan (netto)</div><div class="val" id="kpiNet">0</div><div class="sub">to'lovga tayyor</div></div>
+      </div>
+      <div class="card">
+        <h3>Bo'limlar bo'yicha hisobot</h3>
+        <table class="sumtable"><thead><tr>
+          <th>Bo'lim</th><th>Soni</th><th>Brutto</th><th>Daromad solig'i</th><th>INPS</th><th>Kasaba</th><th>Jami ushlanma</th><th>Netto</th>
+        </tr></thead><tbody id="sumbody"></tbody></table>
+      </div>
+      <div class="card">
+        <h3>Bo'limlar ulushi (netto bo'yicha)</h3>
+        <div id="bars"></div>
+        <div class="legend">
+          <span><i style="background:#1b556e"></i>Professor-o'qituvchilar</span>
+          <span><i style="background:#c98a1a"></i>Ma'muriyat</span>
+          <span><i style="background:#4e8a3a"></i>Texnik xodimlar</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="view" id="view-teachers"></section>
+    <section class="view" id="view-admin"></section>
+    <section class="view" id="view-tech"></section>
+
+    <section class="view" id="view-settings">
+      <div class="toolbar"><h2>Sozlamalar — soliq va ushlanma stavkalari</h2></div>
+      <div class="hint">Bu yerda o'zgartirilgan stavkalar <b>barcha bo'limlarga avtomatik</b> qo'llaniladi va bazaga saqlanadi.</div>
+      <div class="card" style="max-width:720px">
+        <div class="setrow"><label>Daromad solig'i stavkasi</label><span class="desc">Jismoniy shaxs daromad solig'i</span><input id="s-tax" type="number" step="0.1"><span class="pill">%</span></div>
+        <div class="setrow"><label>INPS (jamg'arma pensiya)</label><span class="desc">Ish haqidan jamg'arma pensiya badali</span><input id="s-inps" type="number" step="0.01"><span class="pill">%</span></div>
+        <div class="setrow"><label>Kasaba uyushmasi badali</label><span class="desc">A'zolik badali</span><input id="s-union" type="number" step="0.1"><span class="pill">%</span></div>
+        <div class="setrow"><label>Bazaviy hisoblash miqdori (BHM)</label><span class="desc">2026 y. joriy miqdor</span><input id="s-bhm" type="number" step="1000"><span class="pill">so'm</span></div>
+      </div>
+      <div class="card" style="max-width:720px">
+        <h3>Ma'lumotlarni boshqarish</h3>
+        <div style="display:flex;gap:9px;flex-wrap:wrap">
+          <button class="btn primary" onclick="exportAll()">⬇ CSV/Excelga saqlash</button>
+          <button class="btn" onclick="document.getElementById('imp').click()">⬆ CSV dan yuklash</button>
+          <input type="file" id="imp" accept=".csv" style="display:none" onchange="importCSV(event)">
+        </div>
+        <p style="color:var(--muted);font-size:12.5px;margin:12px 0 0;line-height:1.55">Ma'lumotlar serverdagi bazada avtomatik saqlanadi — kirgan har bir foydalanuvchi bir xil ma'lumotni ko'radi.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeSlip()"><div class="slip" id="slipBody"></div></div>
+
+<script>
+/* ------- Serverdan kelgan holat va rol ------- */
+const STATE = {{ state|safe }};
+const ROLE = "{{ user.role }}";
+const CANEDIT = (ROLE==="admin"||ROLE==="editor");
+const ISADMIN = (ROLE==="admin");
+
+const CATS={teachers:{name:"Professor-o'qituvchilar",color:"#1b556e"},admin:{name:"Ma'muriyat",color:"#c98a1a"},tech:{name:"Texnik xodimlar",color:"#4e8a3a"}};
+let POSITIONS = STATE.lists.pos, DEGREES = STATE.lists.deg, DEPARTMENTS = STATE.lists.dept;
+const LISTS={pos:POSITIONS,deg:DEGREES,dept:DEPARTMENTS};
+const LISTLBL={pos:"lavozim",deg:"ilmiy daraja/unvon",dept:"bo'lim"};
+let settings = STATE.settings;
+let data = STATE.employees;
+let uid = STATE.nextId || (Math.max(0,...Object.values(data).flat().map(e=>e.id||0))+1);
+const UZM=["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"];
+
+function blank(){return {id:uid++,fio:"",pos:"",dept:"",deg:"—",stavka:1,base:0,hours:0,rate:0,degp:0,stajp:0,bonus:0,advance:0};}
+
+/* ------- Avtomatik saqlash ------- */
+let saveTimer=null;
+function setSave(t){const b=document.getElementById("savebox");if(!b)return;
+  b.textContent=t==="saving"?"⏳ Saqlanmoqda…":t==="saved"?"✓ Saqlandi":t==="error"?"⚠ Xatolik":"";}
+function scheduleSave(){ if(!CANEDIT) return; setSave("saving"); clearTimeout(saveTimer); saveTimer=setTimeout(doSave,700); }
+function doSave(){
+  fetch("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({employees:data,lists:{pos:POSITIONS,deg:DEGREES,dept:DEPARTMENTS},nextId:uid})})
+   .then(r=>setSave(r.ok?"saved":"error")).catch(()=>setSave("error"));
+}
+function saveSettings(){ if(!ISADMIN) return; setSave("saving");
+  fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(settings)})
+   .then(r=>setSave(r.ok?"saved":"error")).catch(()=>setSave("error")); }
+
+/* ------- Hisoblash ------- */
+function calc(e){
+  const main=e.stavka*e.base, soatbay=e.hours*e.rate, ustama=main*((e.degp+e.stajp)/100);
+  const gross=main+soatbay+ustama+e.bonus;
+  const tax=gross*settings.tax/100, inps=gross*settings.inps/100, union=gross*settings.union/100;
+  const ded=tax+inps+union+e.advance, net=gross-ded;
+  return {main,soatbay,ustama,gross,tax,inps,union,ded,net};
+}
+const fmt=n=>(Math.round(n)||0).toLocaleString("ru-RU");
+
+const COLDEFS=[
+  {k:"fio",t:"F.I.SH.",cls:"inp txt",w:210,type:"text"},
+  {k:"pos",t:"Lavozimi",cls:"inp txt",w:150,type:"pos"},
+  {k:"dept",t:"Bo'lim / kafedra",cls:"inp txt",w:150,type:"dept"},
+  {k:"deg",t:"Ilmiy daraja / unvon",cls:"inp txt",w:150,type:"deg",hideIn:["tech"]},
+  {k:"stavka",t:"Stavka",cls:"inp num",w:70,type:"num",step:"0.25"},
+  {k:"base",t:"Lavozim maoshi (1 stavka)",cls:"inp num",w:130,type:"num"},
+  {c:"main",t:"Asosiy maosh",cls:"calc num",w:120},
+  {k:"hours",t:"Dars soati (oylik)",cls:"inp num",w:80,type:"num",hideIn:["admin","tech"]},
+  {k:"rate",t:"1 soat narxi",cls:"inp num",w:100,type:"num",hideIn:["admin","tech"]},
+  {c:"soatbay",t:"Soatbay summasi",cls:"calc num",w:120,hideIn:["admin","tech"]},
+  {k:"degp",t:"Daraja/unvon ustama %",cls:"inp num",w:90,type:"num",step:"1",hideIn:["tech"]},
+  {k:"stajp",t:"Staj ustama %",cls:"inp num",w:80,type:"num",step:"1"},
+  {c:"ustama",t:"Ustamalar summasi",cls:"calc num",w:120},
+  {k:"bonus",t:"Mukofot / KPI",cls:"inp num",w:110,type:"num"},
+  {c:"gross",t:"JAMI HISOBLANGAN (brutto)",cls:"gross num",w:140},
+  {c:"tax",t:"Daromad solig'i",cls:"calc num",w:110},
+  {c:"inps",t:"INPS",cls:"calc num",w:90},
+  {c:"union",t:"Kasaba",cls:"calc num",w:90},
+  {k:"advance",t:"Avans / boshqa",cls:"inp num",w:100,type:"num"},
+  {c:"ded",t:"Jami ushlanma",cls:"calc num",w:120},
+  {c:"net",t:"QO'LGA TEGADIGAN (netto)",cls:"net num",w:140},
+];
+function colsFor(cat){ return COLDEFS.filter(c=>!(c.hideIn&&c.hideIn.includes(cat))); }
+
+function renderCat(cat){
+  const host=document.getElementById("view-"+cat), list=data[cat], cols=colsFor(cat);
+  const dis = CANEDIT?"":"disabled";
+  let h=`<div class="toolbar"><h2>${CATS[cat].name}</h2>`;
+  if(CANEDIT) h+=`<button class="btn primary" onclick="addRow('${cat}')">＋ Xodim qo'shish</button>`;
+  h+=`<button class="btn" onclick="exportCat('${cat}')">⬇ Eksport</button></div>`;
+  h+= CANEDIT
+    ? `<div class="hint">Faqat <b>sariq</b> katakchalarga yozing. <b>Ko'k</b> va <b>yashil</b> ustunlar avtomatik hisoblanadi. O'zgarishlar avtomatik saqlanadi. 🧾 orqali hisob varaqasi.</div>`
+    : `<div class="hint ro">Siz <b>ko'ruvchi</b> huquqiga egasiz — ma'lumotni faqat ko'rish va eksport qilish mumkin.</div>`;
+  h+=`<div class="tablewrap"><table><thead><tr><th style="width:38px">№</th>`;
+  cols.forEach(c=>h+=`<th style="min-width:${c.w}px">${c.t}</th>`);
+  h+=`<th style="width:70px">Amal</th></tr></thead><tbody>`;
+  list.forEach((e,i)=>{
+    const r=calc(e);
+    h+=`<tr data-id="${e.id}"><td class="idx">${i+1}</td>`;
+    cols.forEach(c=>{
+      if(c.k){
+        if(c.type==="pos"||c.type==="deg"||c.type==="dept"){
+          const src=LISTS[c.type], cur=e[c.k];
+          const opts=src.map(o=>`<option ${o===cur?"selected":""}>${o}</option>`).join("");
+          const extra=(cur&&cur!=="—"&&!src.includes(cur))?`<option selected>${cur}</option>`:"";
+          const addopt=CANEDIT?`<option value="__add__">➕ Yangi qo'shish…</option>`:"";
+          h+=`<td class="${c.cls}"><select ${dis} onchange="selChange(${e.id},'${c.type}',this)"><option value=""></option>${opts}${extra}${addopt}</select></td>`;
+        } else if(c.type==="num"){
+          h+=`<td class="${c.cls}"><input ${dis} type="number" step="${c.step||'1000'}" value="${e[c.k]||0}" oninput="upd(${e.id},'${c.k}',this.value)"></td>`;
+        } else {
+          h+=`<td class="${c.cls}"><input ${dis} type="text" value="${(e[c.k]||'').replace(/"/g,'&quot;')}" oninput="updText(${e.id},'${c.k}',this.value)" placeholder="F.I.SH."></td>`;
+        }
+      } else {
+        h+=`<td class="${c.cls}" data-c="${c.c}"><div class="cell">${fmt(r[c.c])}</div></td>`;
+      }
+    });
+    h+=`<td class="act"><button class="rowbtn slip" title="Hisob varaqasi" onclick="showSlip('${cat}',${e.id})">🧾</button>`;
+    if(CANEDIT) h+=`<button class="rowbtn" title="O'chirish" onclick="delRow('${cat}',${e.id})">✕</button>`;
+    h+=`</td></tr>`;
+  });
+  h+=`</tbody><tfoot>${footerHTML(cat)}</tfoot></table></div>`;
+  host.innerHTML=h;
+}
+
+function footerHTML(cat){
+  const list=data[cat], tot=totals(cat), cols=colsFor(cat);
+  const fm={main:tot.main,soatbay:tot.soatbay,ustama:tot.ustama,gross:tot.gross,tax:tot.tax,inps:tot.inps,union:tot.union,ded:tot.ded,net:tot.net};
+  const B=cols.findIndex(c=>c.c);
+  let h=`<tr><td class="lbl" colspan="${B+1}">JAMI (${list.length} xodim):</td>`;
+  for(let i=B;i<cols.length;i++){const c=cols[i];let cls="",v="";
+    if(c.c&&fm[c.c]!==undefined){v=fmt(fm[c.c]);cls=c.c==="gross"?"g":(c.c==="net"?"n":"");}
+    else if(c.k==="hours")v=fmt(tot.hours); else if(c.k==="bonus")v=fmt(tot.bonus); else if(c.k==="advance")v=fmt(tot.advance);
+    h+=`<td class="${cls}">${v}</td>`;}
+  h+=`<td></td></tr>`; return h;
+}
+function updateFooter(cat){const tf=document.querySelector(`#view-${cat} tfoot`);if(tf)tf.innerHTML=footerHTML(cat);}
+function totals(cat){const t={main:0,soatbay:0,ustama:0,gross:0,tax:0,inps:0,union:0,ded:0,net:0,hours:0,bonus:0,advance:0};
+  data[cat].forEach(e=>{const r=calc(e);["main","soatbay","ustama","gross","tax","inps","union","ded","net"].forEach(k=>t[k]+=r[k]);t.hours+=+e.hours;t.bonus+=+e.bonus;t.advance+=+e.advance;});return t;}
+
+/* ------- Tahrirlash (jonli + avtosave) ------- */
+function upd(id,key,val){const e=find(id);if(e){e[key]=parseFloat(val)||0;liveRow(id);scheduleSave();}}
+function updText(id,key,val){const e=find(id);if(e){e[key]=val;liveRow(id);scheduleSave();}}
+function selChange(id,key,el){
+  if(el.value==="__add__"){
+    const v=(prompt("Yangi "+(LISTLBL[key]||"qiymat")+" nomini kiriting:")||"").trim();
+    if(v){const list=LISTS[key];if(!list.includes(v))list.push(v);const e=find(id);if(e)e[key]=v;}
+    else{el.value=find(id)[key]||"";return;}
+    renderAll();scheduleSave();return;
+  }
+  updText(id,key,el.value);
+}
+function find(id){for(const c in data){const f=data[c].find(x=>x.id===id);if(f)return f;}}
+function catOf(id){for(const c in data){if(data[c].some(x=>x.id===id))return c;}}
+function liveRow(id){
+  const cat=catOf(id);if(!cat)return;const e=find(id),r=calc(e);
+  const tr=document.querySelector(`#view-${cat} tbody tr[data-id="${id}"]`);
+  if(tr)tr.querySelectorAll("td[data-c]").forEach(td=>{const c=td.querySelector(".cell");if(c)c.textContent=fmt(r[td.dataset.c]);});
+  updateFooter(cat);renderDash();
+}
+function addRow(cat){if(!CANEDIT)return;const e=blank();e.stavka=1;data[cat].push(e);renderCat(cat);renderDash();scheduleSave();}
+function delRow(cat,id){if(!CANEDIT)return;if(!confirm("Ushbu xodim o'chirilsinmi?"))return;data[cat]=data[cat].filter(x=>x.id!==id);renderCat(cat);renderDash();scheduleSave();}
+
+/* ------- Dashboard ------- */
+function renderDash(){
+  let all={count:0,gross:0,ded:0,net:0},sb="",bars="",netByCat={};
+  Object.keys(CATS).forEach(cat=>{const t=totals(cat),n=data[cat].length;
+    all.count+=n;all.gross+=t.gross;all.ded+=t.ded;all.net+=t.net;netByCat[cat]=t.net;
+    sb+=`<tr><td>${CATS[cat].name}</td><td>${n}</td><td>${fmt(t.gross)}</td><td>${fmt(t.tax)}</td><td>${fmt(t.inps)}</td><td>${fmt(t.union)}</td><td>${fmt(t.ded)}</td><td>${fmt(t.net)}</td></tr>`;});
+  sb+=`<tr><td>JAMI</td><td>${all.count}</td><td>${fmt(all.gross)}</td><td>${fmt(sumF('tax'))}</td><td>${fmt(sumF('inps'))}</td><td>${fmt(sumF('union'))}</td><td>${fmt(all.ded)}</td><td>${fmt(all.net)}</td></tr>`;
+  document.getElementById("sumbody").innerHTML=sb;
+  document.getElementById("kpiCount").textContent=all.count;
+  document.getElementById("kpiGross").textContent=fmt(all.gross)+" so'm";
+  document.getElementById("kpiDed").textContent=fmt(all.ded)+" so'm";
+  document.getElementById("kpiNet").textContent=fmt(all.net)+" so'm";
+  const mx=Math.max(1,...Object.values(netByCat));
+  Object.keys(CATS).forEach(cat=>{const pct=(netByCat[cat]/mx*100)||0;
+    bars+=`<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span>${CATS[cat].name}</span><span style="font-weight:700">${fmt(netByCat[cat])} so'm</span></div><div class="bar"><span style="width:${pct}%;background:${CATS[cat].color}"></span></div></div>`;});
+  document.getElementById("bars").innerHTML=bars;
+  document.getElementById("kpiPeriod").textContent=(UZM[+document.getElementById("month").value]||"")+" "+document.getElementById("year").value;
+  syncBadges();
+}
+function sumF(f){let s=0;Object.keys(CATS).forEach(c=>s+=totals(c)[f]);return s;}
+function syncBadges(){Object.keys(CATS).forEach(c=>document.getElementById("b-"+c).textContent=data[c].length);}
+
+/* ------- Hisob varaqasi ------- */
+function showSlip(cat,id){
+  const e=find(id),r=calc(e),m=document.getElementById("month").value,y=document.getElementById("year").value;
+  document.getElementById("slipBody").innerHTML=`
+    <h3>Hisob varaqasi (raschyot listok)</h3>
+    <div class="muted">${document.getElementById("orgName").value} · ${UZM[+m]} ${y}</div>
+    <div style="margin-top:14px;font-size:15px;font-weight:700">${e.fio||"(F.I.SH. kiritilmagan)"}</div>
+    <div class="muted">${e.pos||"—"}${e.dept?" · "+e.dept:""}${e.deg&&e.deg!=="—"?" · "+e.deg:""} · Stavka: ${e.stavka}</div>
+    <div class="sec">Hisoblangan</div>
+    <table>
+      <tr><td class="l">Asosiy maosh (${e.stavka}×${fmt(e.base)})</td><td>${fmt(r.main)}</td></tr>
+      ${e.hours>0?`<tr><td class="l">Soatbay (${e.hours} soat × ${fmt(e.rate)})</td><td>${fmt(r.soatbay)}</td></tr>`:""}
+      <tr><td class="l">Ustamalar (${e.degp+e.stajp}%)</td><td>${fmt(r.ustama)}</td></tr>
+      <tr><td class="l">Mukofot / KPI</td><td>${fmt(e.bonus)}</td></tr>
+      <tr><td class="l" style="font-weight:700">Jami hisoblangan (brutto)</td><td style="font-weight:700">${fmt(r.gross)}</td></tr>
+    </table>
+    <div class="sec">Ushlanmalar</div>
+    <table>
+      <tr><td class="l">Daromad solig'i (${settings.tax}%)</td><td>−${fmt(r.tax)}</td></tr>
+      <tr><td class="l">INPS (${settings.inps}%)</td><td>−${fmt(r.inps)}</td></tr>
+      <tr><td class="l">Kasaba uyushmasi (${settings.union}%)</td><td>−${fmt(r.union)}</td></tr>
+      <tr><td class="l">Avans / boshqa</td><td>−${fmt(e.advance)}</td></tr>
+      <tr><td class="l" style="font-weight:700">Jami ushlanma</td><td style="font-weight:700">−${fmt(r.ded)}</td></tr>
+    </table>
+    <table><tr><td class="l tot">QO'LGA TEGADIGAN</td><td class="tot">${fmt(r.net)} so'm</td></tr></table>
+    <div class="slip-actions"><button class="btn primary" onclick="window.print()">🖨 Chop etish</button><button class="btn" onclick="closeSlip()">Yopish</button></div>`;
+  document.getElementById("modal").classList.add("open");
+}
+function closeSlip(){document.getElementById("modal").classList.remove("open");}
+
+/* ------- Eksport / import ------- */
+const CSVCOLS=["Kategoriya","F.I.SH.","Lavozim","Bo'lim_kafedra","Daraja","Stavka","Lavozim_maoshi","Dars_soati","1_soat_narxi","Daraja_ustama_%","Staj_ustama_%","Mukofot","Avans","Asosiy_maosh","Soatbay","Ustama","Brutto","Soliq","INPS","Kasaba","Jami_ushlanma","Netto"];
+function rowsCSV(cats){let rows=[CSVCOLS.join(";")];
+  cats.forEach(cat=>data[cat].forEach(e=>{const r=calc(e);
+    rows.push([CATS[cat].name,e.fio,e.pos,e.dept,e.deg,e.stavka,e.base,e.hours,e.rate,e.degp,e.stajp,e.bonus,e.advance,
+      Math.round(r.main),Math.round(r.soatbay),Math.round(r.ustama),Math.round(r.gross),Math.round(r.tax),Math.round(r.inps),Math.round(r.union),Math.round(r.ded),Math.round(r.net)].join(";"));}));
+  return rows.join("\n");}
+function download(name,text){const blob=new Blob(["﻿"+text],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();}
+function exportAll(){download("Ish_haqi_"+document.getElementById("month").value+"_"+document.getElementById("year").value+".csv",rowsCSV(Object.keys(CATS)));}
+function exportCat(cat){download("Ish_haqi_"+cat+".csv",rowsCSV([cat]));}
+function importCSV(ev){if(!CANEDIT){alert("Import faqat muharrir/admin uchun.");return;}
+  const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
+  rd.onload=()=>{const lines=rd.result.replace(/^﻿/,"").split(/\r?\n/).filter(x=>x.trim());
+    const byName={};Object.keys(CATS).forEach(c=>byName[CATS[c].name]=c);
+    data={teachers:[],admin:[],tech:[]};
+    lines.slice(1).forEach(l=>{const p=l.split(";");const cat=byName[p[0]]||"tech";
+      const e={id:uid++,fio:p[1]||"",pos:p[2]||"",dept:p[3]||"",deg:p[4]||"—",stavka:+p[5]||0,base:+p[6]||0,hours:+p[7]||0,rate:+p[8]||0,degp:+p[9]||0,stajp:+p[10]||0,bonus:+p[11]||0,advance:+p[12]||0};
+      if(e.pos&&!POSITIONS.includes(e.pos))POSITIONS.push(e.pos);
+      if(e.dept&&!DEPARTMENTS.includes(e.dept))DEPARTMENTS.push(e.dept);
+      data[cat].push(e);});
+    renderAll();scheduleSave();alert("Yuklandi: "+lines.slice(1).length+" ta yozuv.");};
+  rd.readAsText(f);}
+
+/* ------- Navigatsiya ------- */
+document.querySelectorAll("#nav a[data-view]").forEach(a=>a.onclick=()=>{
+  document.querySelectorAll("#nav a").forEach(x=>x.classList.remove("active"));a.classList.add("active");
+  const v=a.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));
+  document.getElementById("view-"+v).classList.add("active");});
+
+/* Sozlamalar (faqat admin) */
+if(!ISADMIN){const ns=document.getElementById("nav-settings");if(ns)ns.style.display="none";}
+["tax","inps","union","bhm"].forEach(k=>{const map={tax:"s-tax",inps:"s-inps",union:"s-union",bhm:"s-bhm"};
+  const el=document.getElementById(map[k]);el.value=settings[k];
+  el.disabled=!ISADMIN;
+  el.addEventListener("input",()=>{settings[k]=parseFloat(el.value)||0;renderAll();saveSettings();});});
+
+function initPeriod(){const ms=document.getElementById("month"),ys=document.getElementById("year");
+  UZM.forEach((m,i)=>ms.insertAdjacentHTML("beforeend",`<option value="${i}">${m}</option>`));
+  const now=new Date();ms.value=now.getMonth();
+  for(let y=2024;y<=2030;y++)ys.insertAdjacentHTML("beforeend",`<option ${y===now.getFullYear()?"selected":""}>${y}</option>`);
+  ms.onchange=ys.onchange=renderDash;}
+
+function renderAll(){["teachers","admin","tech"].forEach(renderCat);renderDash();}
+initPeriod();renderAll();
+</script>
+</body>
+</html>

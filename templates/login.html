@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="uz"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kirish — Ish haqi tizimi</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:"Segoe UI",Arial,sans-serif;background:linear-gradient(135deg,#123a4d,#0b6b5f);color:#1d2733}
+  .box{background:#fff;width:380px;max-width:92%;border-radius:16px;padding:34px 32px;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+  .logo{width:54px;height:54px;border-radius:12px;background:#0e8a7b;color:#fff;display:flex;align-items:center;
+    justify-content:center;font-size:28px;font-weight:800;margin:0 auto 14px}
+  h1{font-size:19px;text-align:center;margin:0 0 4px}
+  .sub{text-align:center;color:#66727f;font-size:13px;margin-bottom:22px}
+  label{display:block;font-size:13px;font-weight:600;margin:14px 0 6px}
+  input{width:100%;padding:11px 13px;border:1px solid #dce2ea;border-radius:9px;font-size:14px;outline:none}
+  input:focus{border-color:#0e8a7b;box-shadow:0 0 0 3px rgba(14,138,123,.15)}
+  button{width:100%;margin-top:22px;padding:12px;border:none;border-radius:9px;background:#0b6b5f;color:#fff;
+    font-size:15px;font-weight:700;cursor:pointer}
+  button:hover{background:#0e8a7b}
+  .err{background:#fde8e5;color:#c0392b;border:1px solid #f5c6c0;border-radius:8px;padding:9px 12px;font-size:13px;margin-bottom:12px}
+  .foot{text-align:center;color:#95a1ac;font-size:11.5px;margin-top:18px}
+</style></head>
+<body>
+  <form class="box" method="post">
+    <div class="logo">Σ</div>
+    <h1>Ish haqi hisoblash tizimi</h1>
+    <div class="sub">Oliy ta'lim muassasasi</div>
+    {% with msgs = get_flashed_messages() %}{% if msgs %}<div class="err">{{ msgs[0] }}</div>{% endif %}{% endwith %}
+    <label>Login</label>
+    <input name="username" autofocus autocomplete="username" placeholder="Loginingiz">
+    <label>Parol</label>
+    <input name="password" type="password" autocomplete="current-password" placeholder="Parolingiz">
+    <button type="submit">Kirish</button>
+    <div class="foot">Dostup faqat administrator bergan foydalanuvchilarga.</div>
+  </form>
+</body></html>
