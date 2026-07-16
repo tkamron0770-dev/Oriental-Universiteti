@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="uz"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Foydalanuvchilar — Ish haqi tizimi</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Segoe UI",Arial,sans-serif;background:#eef1f5;color:#1d2733}
+  header{background:linear-gradient(90deg,#123a4d,#1b556e);color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px}
+  header a.back{color:#cfe6e2;text-decoration:none;font-size:14px}
+  header h1{font-size:17px;margin:0}
+  header .sp{margin-left:auto;font-size:13px;color:#cfe6e2}
+  .wrap{max-width:1000px;margin:22px auto;padding:0 18px}
+  .card{background:#fff;border:1px solid #dce2ea;border-radius:12px;padding:20px 22px;margin-bottom:18px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .card h2{margin:0 0 14px;font-size:16px}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  th{background:#f2f5f8;text-align:left;padding:10px;color:#66727f;font-size:12.5px;border-bottom:2px solid #dce2ea}
+  td{padding:9px 10px;border-bottom:1px solid #eef1f5;vertical-align:middle}
+  .role{font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px}
+  .r-admin{background:#e7d9f7;color:#6b21a8}.r-editor{background:#d9e7ca;color:#3f6212}.r-viewer{background:#e3ecf5;color:#1b556e}
+  input,select{padding:8px 10px;border:1px solid #dce2ea;border-radius:8px;font-size:13.5px;font-family:inherit}
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
+  .grid label{display:block;font-size:12px;font-weight:600;color:#66727f;margin-bottom:5px}
+  .grid input,.grid select{width:100%}
+  button{padding:9px 15px;border:none;border-radius:8px;background:#0b6b5f;color:#fff;font-weight:700;cursor:pointer;font-size:13.5px}
+  button:hover{background:#0e8a7b}
+  button.sm{padding:6px 11px;font-size:12.5px;background:#fff;color:#1d2733;border:1px solid #dce2ea}
+  button.sm:hover{background:#f4f7fa}
+  button.danger{color:#c0392b;border-color:#f0c8c2}
+  button.danger:hover{background:#fde8e5}
+  .flash{background:#e8f5e9;border:1px solid #b7dfba;color:#2e6b31;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:13.5px}
+  .inline{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .muted{color:#66727f;font-size:12.5px}
+  .rolehelp{display:flex;gap:18px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:#66727f}
+  .rolehelp b{color:#1d2733}
+</style></head>
+<body>
+<header>
+  <a class="back" href="/">← Panelga qaytish</a>
+  <h1>👥 Foydalanuvchilar va dostup</h1>
+  <span class="sp">{{ user.username }} · admin</span>
+</header>
+<div class="wrap">
+  {% with msgs = get_flashed_messages() %}{% if msgs %}<div class="flash">{{ msgs[0] }}</div>{% endif %}{% endwith %}
+
+  <div class="card">
+    <h2>➕ Yangi foydalanuvchi qo'shish</h2>
+    <form method="post" action="/users/add">
+      <div class="grid">
+        <div><label>To'liq ism (ixtiyoriy)</label><input name="full_name" placeholder="F.I.SH."></div>
+        <div><label>Login</label><input name="username" required placeholder="masalan: buxgalter1"></div>
+        <div><label>Parol</label><input name="password" required minlength="5" placeholder="kamida 5 belgi"></div>
+        <div><label>Roli (huquqi)</label>
+          <select name="role">
+            <option value="viewer">Ko'ruvchi</option>
+            <option value="editor">Muharrir</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div><button type="submit">Qo'shish</button></div>
+      </div>
+    </form>
+    <div class="rolehelp">
+      <span><b>Admin</b> — hamma narsa: tahrirlash, sozlamalar, foydalanuvchilarni boshqarish.</span>
+      <span><b>Muharrir</b> — xodim ma'lumotlarini kiritadi/tahrirlaydi (sozlama va foydalanuvchilarga tegmaydi).</span>
+      <span><b>Ko'ruvchi</b> — faqat ko'radi, o'zgartira olmaydi.</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Mavjud foydalanuvchilar</h2>
+    <table>
+      <thead><tr><th>#</th><th>To'liq ism</th><th>Login</th><th>Roli</th><th>Rolni o'zgartirish / parol</th><th></th></tr></thead>
+      <tbody>
+      {% for u in users %}
+        <tr>
+          <td>{{ loop.index }}</td>
+          <td>{{ u.full_name or '—' }}</td>
+          <td><b>{{ u.username }}</b></td>
+          <td><span class="role r-{{ u.role }}">{{ {'admin':'Admin','editor':'Muharrir','viewer':"Ko'ruvchi"}[u.role] }}</span></td>
+          <td>
+            <form method="post" action="/users/update" class="inline">
+              <input type="hidden" name="id" value="{{ u.id }}">
+              <select name="role">
+                <option value="viewer" {{ 'selected' if u.role=='viewer' }}>Ko'ruvchi</option>
+                <option value="editor" {{ 'selected' if u.role=='editor' }}>Muharrir</option>
+                <option value="admin" {{ 'selected' if u.role=='admin' }}>Admin</option>
+              </select>
+              <input name="password" type="text" placeholder="yangi parol (ixtiyoriy)" style="width:170px">
+              <button class="sm" type="submit">Saqlash</button>
+            </form>
+          </td>
+          <td>
+            {% if u.id != user.id %}
+            <form method="post" action="/users/delete" onsubmit="return confirm('Ushbu foydalanuvchi o‘chirilsinmi?')">
+              <input type="hidden" name="id" value="{{ u.id }}">
+              <button class="sm danger" type="submit">O'chirish</button>
+            </form>
+            {% else %}<span class="muted">— siz —</span>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>🔑 O'z parolimni o'zgartirish</h2>
+    <form method="post" action="/change-password" class="inline">
+      <input name="old" type="password" placeholder="Joriy parol" required>
+      <input name="new" type="password" placeholder="Yangi parol (kamida 5 belgi)" required minlength="5">
+      <button type="submit">O'zgartirish</button>
+    </form>
+  </div>
+</div>
+</body></html>
