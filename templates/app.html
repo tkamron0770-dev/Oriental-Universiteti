@@ -2,6 +2,7 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
+<link rel="icon" href="data:,">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ish haqi hisoblash — {{ user.username }}</title>
 <style>
@@ -104,6 +105,19 @@
   .slip-actions{display:flex;gap:8px;margin-top:20px}
   @media(max-width:900px){.app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}nav{grid-row:2;display:flex;overflow-x:auto;padding:6px}nav .grp{display:none}nav a{white-space:nowrap;border-left:none;border-bottom:3px solid transparent}.kpis{grid-template-columns:1fr 1fr}header .org{display:none}}
   @media print{nav,header,.toolbar,.hint{display:none}.app{display:block;height:auto}main{overflow:visible}}
+
+  /* Tabel / Davomat */
+  table.tabel{min-width:1100px}
+  table.tabel th.d{min-width:24px;padding:4px 2px;font-size:10px;line-height:1.1}
+  table.tabel th.d.we{background:#17394b}
+  table.tabel th.d small{font-size:8.5px;color:#a9c6d2;font-weight:400}
+  table.tabel td.mk{width:24px;min-width:24px;text-align:center;cursor:pointer;font-weight:700;font-size:11px;padding:5px 2px;color:#2e7d32}
+  table.tabel td.mk.we{background:#eef0f3;color:#a3adb8;cursor:default;font-weight:400}
+  table.tabel td.mk.m-p{color:#2e7d32}
+  table.tabel td.mk.m-b{color:#c0392b;background:#fdecea}
+  table.tabel td.mk.m-k{color:#b8860b;background:#fff6e0}
+  table.tabel td.mk.m-t{color:#5b4bd1;background:#eeeafc}
+  table.tabel td.mk:hover{box-shadow:inset 0 0 0 2px var(--accent2)}
 </style>
 </head>
 <body>
@@ -132,6 +146,8 @@
     <a data-view="teachers"><span class="ic">🎓</span> Professor-o'qituvchilar <span class="badge" id="b-teachers">0</span></a>
     <a data-view="admin"><span class="ic">🏛</span> Ma'muriyat <span class="badge" id="b-admin">0</span></a>
     <a data-view="tech"><span class="ic">🔧</span> Texnik xodimlar <span class="badge" id="b-tech">0</span></a>
+    <div class="grp">Davomat</div>
+    <a data-view="tabel"><span class="ic">🗓</span> Tabel / Davomat</a>
     <div class="grp">Tizim</div>
     <a data-view="settings" id="nav-settings"><span class="ic">⚙</span> Sozlamalar</a>
   </nav>
@@ -169,6 +185,7 @@
     <section class="view" id="view-teachers"></section>
     <section class="view" id="view-admin"></section>
     <section class="view" id="view-tech"></section>
+    <section class="view" id="view-tabel"></section>
 
     <section class="view" id="view-settings">
       <div class="toolbar"><h2>Sozlamalar — soliq va ushlanma stavkalari</h2></div>
@@ -178,6 +195,7 @@
         <div class="setrow"><label>INPS (jamg'arma pensiya)</label><span class="desc">Ish haqidan jamg'arma pensiya badali</span><input id="s-inps" type="number" step="0.01"><span class="pill">%</span></div>
         <div class="setrow"><label>Kasaba uyushmasi badali</label><span class="desc">A'zolik badali</span><input id="s-union" type="number" step="0.1"><span class="pill">%</span></div>
         <div class="setrow"><label>Bazaviy hisoblash miqdori (BHM)</label><span class="desc">2026 y. joriy miqdor</span><input id="s-bhm" type="number" step="1000"><span class="pill">so'm</span></div>
+        <div class="setrow"><label>Oy ish kunlari normasi</label><span class="desc">Joriy davr (oy) uchun ish kunlari soni — maosh shu normaga nisbatan hisoblanadi</span><input id="s-norm" type="number" step="1"><span class="pill">kun</span></div>
       </div>
       <div class="card" style="max-width:720px">
         <h3>Ma'lumotlarni boshqarish</h3>
@@ -206,11 +224,41 @@ let POSITIONS = STATE.lists.pos, DEGREES = STATE.lists.deg, DEPARTMENTS = STATE.
 const LISTS={pos:POSITIONS,deg:DEGREES,dept:DEPARTMENTS};
 const LISTLBL={pos:"lavozim",deg:"ilmiy daraja/unvon",dept:"bo'lim"};
 let settings = STATE.settings;
-let data = STATE.employees;
-let uid = STATE.nextId || (Math.max(0,...Object.values(data).flat().map(e=>e.id||0))+1);
+const PERIODS = STATE.periods || {};
 const UZM=["Yanvar","Fevral","Mart","Aprel","May","Iyun","Iyul","Avgust","Sentabr","Oktabr","Noyabr","Dekabr"];
+const WD=["Ya","Du","Se","Ch","Pa","Ju","Sh"];
+const MKORDER=["+","B","K","T"];
+const MKCLS={"+":"p","B":"b","K":"k","T":"t"};
 
-function blank(){return {id:uid++,fio:"",pos:"",dept:"",deg:"—",stavka:1,base:0,hours:0,rate:0,degp:0,stajp:0,bonus:0,advance:0};}
+let CURKEY=null, data=null, NORM=22, uid=1, TABCAT="admin";
+
+/* ------- Davr (oy) yordamchilari ------- */
+function curY(){return +document.getElementById("year").value;}
+function curM1(){return (+document.getElementById("month").value)+1;}
+function pkey(y,m1){return y+"-"+m1;}
+function daysInMonth(y,m1){return new Date(y,m1,0).getDate();}
+function dow(y,m1,d){return new Date(y,m1-1,d).getDay();}
+function isWE(y,m1,d){const w=dow(y,m1,d);return w===0||w===6;}
+function workdaysOf(y,m1){let n=0,D=daysInMonth(y,m1);for(let d=1;d<=D;d++)if(!isWE(y,m1,d))n++;return n;}
+function genMarks(y,m1){let s="",D=daysInMonth(y,m1);for(let d=1;d<=D;d++)s+=isWE(y,m1,d)?"D":"+";return s;}
+function countPlus(m){let n=0;for(const ch of (m||""))if(ch==="+")n++;return n;}
+
+function ensurePeriod(y,m1){const k=pkey(y,m1);
+  if(!PERIODS[k]){PERIODS[k]={norm:workdaysOf(y,m1),nextId:1,employees:{teachers:[],admin:[],tech:[]}};if(CANEDIT)scheduleSave();}
+  return PERIODS[k];}
+
+function loadPeriod(){const y=curY(),m1=curM1();const p=ensurePeriod(y,m1);
+  CURKEY=pkey(y,m1); data=p.employees; NORM=p.norm||workdaysOf(y,m1); uid=p.nextId||1;
+  const D=daysInMonth(y,m1),base=genMarks(y,m1);
+  ["teachers","admin","tech"].forEach(cat=>(data[cat]||[]).forEach(e=>{
+    if(!e.marks||e.marks.length!==D){
+      if(e.marks){let s="";for(let i=0;i<D;i++)s+=(e.marks[i]||base[i]);e.marks=s;}else e.marks=base;}
+    if(e.allowance===undefined)e.allowance=0;
+    if(e.bonus===undefined)e.bonus=0;
+    if(e.advance===undefined)e.advance=0;
+  }));}
+
+function blank(){const y=curY(),m1=curM1();return {id:uid++,fio:"",pos:"",dept:"",deg:"—",stavka:1,base:0,allowance:0,bonus:0,advance:0,marks:genMarks(y,m1)};}
 
 /* ------- Avtomatik saqlash ------- */
 let saveTimer=null;
@@ -218,57 +266,60 @@ function setSave(t){const b=document.getElementById("savebox");if(!b)return;
   b.textContent=t==="saving"?"⏳ Saqlanmoqda…":t==="saved"?"✓ Saqlandi":t==="error"?"⚠ Xatolik":"";}
 function scheduleSave(){ if(!CANEDIT) return; setSave("saving"); clearTimeout(saveTimer); saveTimer=setTimeout(doSave,700); }
 function doSave(){
+  if(CURKEY&&PERIODS[CURKEY]){PERIODS[CURKEY].norm=NORM;PERIODS[CURKEY].nextId=uid;PERIODS[CURKEY].employees=data;}
   fetch("/api/state",{method:"POST",headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({employees:data,lists:{pos:POSITIONS,deg:DEGREES,dept:DEPARTMENTS},nextId:uid})})
+    body:JSON.stringify({period:CURKEY,norm:NORM,nextId:uid,employees:data,lists:{pos:POSITIONS,deg:DEGREES,dept:DEPARTMENTS}})})
    .then(r=>setSave(r.ok?"saved":"error")).catch(()=>setSave("error"));
 }
 function saveSettings(){ if(!ISADMIN) return; setSave("saving");
   fetch("/api/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(settings)})
    .then(r=>setSave(r.ok?"saved":"error")).catch(()=>setSave("error")); }
 
-/* ------- Hisoblash ------- */
+/* ------- Hisoblash (davomat bilan) ------- */
 function calc(e){
-  const main=e.stavka*e.base, soatbay=e.hours*e.rate, ustama=main*((e.degp+e.stajp)/100);
-  const gross=main+soatbay+ustama+e.bonus;
+  const main=(+e.stavka||0)*(+e.base||0);
+  const allowance=+e.allowance||0, bonus=+e.bonus||0;
+  const grossFull=main+allowance+bonus;
+  const kel=countPlus(e.marks), ratio=NORM>0?kel/NORM:0;
+  const gross=grossFull*ratio;
   const tax=gross*settings.tax/100, inps=gross*settings.inps/100, union=gross*settings.union/100;
-  const ded=tax+inps+union+e.advance, net=gross-ded;
-  return {main,soatbay,ustama,gross,tax,inps,union,ded,net};
+  const ded=tax+inps+union+(+e.advance||0), net=gross-ded;
+  return {main,allowance,bonus,grossFull,kel,norm:NORM,ratio,gross,tax,inps,union,ded,net};
 }
 const fmt=n=>(Math.round(n)||0).toLocaleString("ru-RU");
+const pct=r=>Math.round(r*100)+"%";
 
 const COLDEFS=[
-  {k:"fio",t:"F.I.SH.",cls:"inp txt",w:210,type:"text"},
+  {k:"fio",t:"F.I.SH.",cls:"inp txt",w:200,type:"text"},
   {k:"pos",t:"Lavozimi",cls:"inp txt",w:150,type:"pos"},
-  {k:"dept",t:"Bo'lim / kafedra",cls:"inp txt",w:150,type:"dept"},
-  {k:"deg",t:"Ilmiy daraja / unvon",cls:"inp txt",w:150,type:"deg",hideIn:["tech"]},
+  {k:"dept",t:"Bo'lim / kafedra",cls:"inp txt",w:160,type:"dept"},
+  {k:"deg",t:"Ilmiy daraja / unvon",cls:"inp txt",w:150,type:"deg"},
   {k:"stavka",t:"Stavka",cls:"inp num",w:70,type:"num",step:"0.25"},
   {k:"base",t:"Lavozim maoshi (1 stavka)",cls:"inp num",w:130,type:"num"},
   {c:"main",t:"Asosiy maosh",cls:"calc num",w:120},
-  {k:"hours",t:"Dars soati (oylik)",cls:"inp num",w:80,type:"num",hideIn:["admin","tech"]},
-  {k:"rate",t:"1 soat narxi",cls:"inp num",w:100,type:"num",hideIn:["admin","tech"]},
-  {c:"soatbay",t:"Soatbay summasi",cls:"calc num",w:120,hideIn:["admin","tech"]},
-  {k:"degp",t:"Daraja/unvon ustama %",cls:"inp num",w:90,type:"num",step:"1",hideIn:["tech"]},
-  {k:"stajp",t:"Staj ustama %",cls:"inp num",w:80,type:"num",step:"1"},
-  {c:"ustama",t:"Ustamalar summasi",cls:"calc num",w:120},
+  {k:"allowance",t:"Ustamalar summasi",cls:"inp num",w:130,type:"num"},
   {k:"bonus",t:"Mukofot / KPI",cls:"inp num",w:110,type:"num"},
-  {c:"gross",t:"JAMI HISOBLANGAN (brutto)",cls:"gross num",w:140},
+  {c:"kel",t:"Kelgan kun",cls:"calc num",w:80,int:true},
+  {c:"norm",t:"Norma kun",cls:"calc num",w:80,int:true},
+  {c:"ratio",t:"Davomat %",cls:"calc num",w:80,pct:true},
+  {c:"gross",t:"JAMI HISOBLANGAN (brutto)",cls:"gross num",w:150},
   {c:"tax",t:"Daromad solig'i",cls:"calc num",w:110},
   {c:"inps",t:"INPS",cls:"calc num",w:90},
   {c:"union",t:"Kasaba",cls:"calc num",w:90},
   {k:"advance",t:"Avans / boshqa",cls:"inp num",w:100,type:"num"},
   {c:"ded",t:"Jami ushlanma",cls:"calc num",w:120},
-  {c:"net",t:"QO'LGA TEGADIGAN (netto)",cls:"net num",w:140},
+  {c:"net",t:"QO'LGA TEGADIGAN (netto)",cls:"net num",w:150},
 ];
-function colsFor(cat){ return COLDEFS.filter(c=>!(c.hideIn&&c.hideIn.includes(cat))); }
+function colsFor(cat){return COLDEFS;}
 
 function renderCat(cat){
-  const host=document.getElementById("view-"+cat), list=data[cat], cols=colsFor(cat);
+  const host=document.getElementById("view-"+cat), list=data[cat]||[], cols=colsFor(cat);
   const dis = CANEDIT?"":"disabled";
   let h=`<div class="toolbar"><h2>${CATS[cat].name}</h2>`;
   if(CANEDIT) h+=`<button class="btn primary" onclick="addRow('${cat}')">＋ Xodim qo'shish</button>`;
   h+=`<button class="btn" onclick="exportCat('${cat}')">⬇ Eksport</button></div>`;
   h+= CANEDIT
-    ? `<div class="hint">Faqat <b>sariq</b> katakchalarga yozing. <b>Ko'k</b> va <b>yashil</b> ustunlar avtomatik hisoblanadi. O'zgarishlar avtomatik saqlanadi. 🧾 orqali hisob varaqasi.</div>`
+    ? `<div class="hint">Faqat <b>sariq</b> katakchalarga yozing. <b>Ko'k</b> va <b>yashil</b> ustunlar avtomatik hisoblanadi. Kelgan kunlar <b>Tabel / Davomat</b> bo'limida belgilanadi. 🧾 orqali hisob varaqasi.</div>`
     : `<div class="hint ro">Siz <b>ko'ruvchi</b> huquqiga egasiz — ma'lumotni faqat ko'rish va eksport qilish mumkin.</div>`;
   h+=`<div class="tablewrap"><table><thead><tr><th style="width:38px">№</th>`;
   cols.forEach(c=>h+=`<th style="min-width:${c.w}px">${c.t}</th>`);
@@ -290,7 +341,8 @@ function renderCat(cat){
           h+=`<td class="${c.cls}"><input ${dis} type="text" value="${(e[c.k]||'').replace(/"/g,'&quot;')}" oninput="updText(${e.id},'${c.k}',this.value)" placeholder="F.I.SH."></td>`;
         }
       } else {
-        h+=`<td class="${c.cls}" data-c="${c.c}"><div class="cell">${fmt(r[c.c])}</div></td>`;
+        const disp = c.pct?pct(r[c.c]) : (c.int? (r[c.c]||0) : fmt(r[c.c]));
+        h+=`<td class="${c.cls}" data-c="${c.c}"><div class="cell">${disp}</div></td>`;
       }
     });
     h+=`<td class="act"><button class="rowbtn slip" title="Hisob varaqasi" onclick="showSlip('${cat}',${e.id})">🧾</button>`;
@@ -302,19 +354,19 @@ function renderCat(cat){
 }
 
 function footerHTML(cat){
-  const list=data[cat], tot=totals(cat), cols=colsFor(cat);
-  const fm={main:tot.main,soatbay:tot.soatbay,ustama:tot.ustama,gross:tot.gross,tax:tot.tax,inps:tot.inps,union:tot.union,ded:tot.ded,net:tot.net};
+  const list=data[cat]||[], tot=totals(cat), cols=colsFor(cat);
   const B=cols.findIndex(c=>c.c);
   let h=`<tr><td class="lbl" colspan="${B+1}">JAMI (${list.length} xodim):</td>`;
   for(let i=B;i<cols.length;i++){const c=cols[i];let cls="",v="";
-    if(c.c&&fm[c.c]!==undefined){v=fmt(fm[c.c]);cls=c.c==="gross"?"g":(c.c==="net"?"n":"");}
-    else if(c.k==="hours")v=fmt(tot.hours); else if(c.k==="bonus")v=fmt(tot.bonus); else if(c.k==="advance")v=fmt(tot.advance);
+    if(c.c){ if(c.c==="kel")v=tot.kel; else if(c.c==="norm"||c.c==="ratio")v="";
+      else if(tot[c.c]!==undefined){v=fmt(tot[c.c]);cls=c.c==="gross"?"g":(c.c==="net"?"n":"");} }
+    else if(c.k==="allowance")v=fmt(tot.allowance); else if(c.k==="bonus")v=fmt(tot.bonus); else if(c.k==="advance")v=fmt(tot.advance);
     h+=`<td class="${cls}">${v}</td>`;}
   h+=`<td></td></tr>`; return h;
 }
 function updateFooter(cat){const tf=document.querySelector(`#view-${cat} tfoot`);if(tf)tf.innerHTML=footerHTML(cat);}
-function totals(cat){const t={main:0,soatbay:0,ustama:0,gross:0,tax:0,inps:0,union:0,ded:0,net:0,hours:0,bonus:0,advance:0};
-  data[cat].forEach(e=>{const r=calc(e);["main","soatbay","ustama","gross","tax","inps","union","ded","net"].forEach(k=>t[k]+=r[k]);t.hours+=+e.hours;t.bonus+=+e.bonus;t.advance+=+e.advance;});return t;}
+function totals(cat){const t={main:0,allowance:0,bonus:0,gross:0,tax:0,inps:0,union:0,ded:0,net:0,kel:0,advance:0};
+  (data[cat]||[]).forEach(e=>{const r=calc(e);t.main+=r.main;t.allowance+=r.allowance;t.bonus+=r.bonus;t.gross+=r.gross;t.tax+=r.tax;t.inps+=r.inps;t.union+=r.union;t.ded+=r.ded;t.net+=r.net;t.kel+=r.kel;t.advance+=(+e.advance||0);});return t;}
 
 /* ------- Tahrirlash (jonli + avtosave) ------- */
 function upd(id,key,val){const e=find(id);if(e){e[key]=parseFloat(val)||0;liveRow(id);scheduleSave();}}
@@ -324,25 +376,62 @@ function selChange(id,key,el){
     const v=(prompt("Yangi "+(LISTLBL[key]||"qiymat")+" nomini kiriting:")||"").trim();
     if(v){const list=LISTS[key];if(!list.includes(v))list.push(v);const e=find(id);if(e)e[key]=v;}
     else{el.value=find(id)[key]||"";return;}
-    renderAll();scheduleSave();return;
+    const cat=catOf(id); renderCat(cat); scheduleSave(); return;
   }
   updText(id,key,el.value);
 }
-function find(id){for(const c in data){const f=data[c].find(x=>x.id===id);if(f)return f;}}
-function catOf(id){for(const c in data){if(data[c].some(x=>x.id===id))return c;}}
+function find(id){for(const c in data){const f=(data[c]||[]).find(x=>x.id===id);if(f)return f;}}
+function catOf(id){for(const c in data){if((data[c]||[]).some(x=>x.id===id))return c;}}
 function liveRow(id){
   const cat=catOf(id);if(!cat)return;const e=find(id),r=calc(e);
   const tr=document.querySelector(`#view-${cat} tbody tr[data-id="${id}"]`);
-  if(tr)tr.querySelectorAll("td[data-c]").forEach(td=>{const c=td.querySelector(".cell");if(c)c.textContent=fmt(r[td.dataset.c]);});
+  if(tr)tr.querySelectorAll("td[data-c]").forEach(td=>{const cc=td.dataset.c;const el=td.querySelector(".cell");if(!el)return;
+    const col=COLDEFS.find(x=>x.c===cc);
+    el.textContent = col&&col.pct?pct(r[cc]) : (col&&col.int?(r[cc]||0) : fmt(r[cc]));});
   updateFooter(cat);renderDash();
 }
 function addRow(cat){if(!CANEDIT)return;const e=blank();e.stavka=1;data[cat].push(e);renderCat(cat);renderDash();scheduleSave();}
 function delRow(cat,id){if(!CANEDIT)return;if(!confirm("Ushbu xodim o'chirilsinmi?"))return;data[cat]=data[cat].filter(x=>x.id!==id);renderCat(cat);renderDash();scheduleSave();}
 
+/* ------- Tabel / Davomat ------- */
+function setTabCat(c){TABCAT=c;renderTabel();}
+function renderTabel(){
+  const host=document.getElementById("view-tabel");
+  const y=curY(),m1=curM1(),D=daysInMonth(y,m1),list=data[TABCAT]||[];
+  let h=`<div class="toolbar"><h2>Tabel / Davomat — ${UZM[m1-1]} ${y}</h2>`;
+  Object.keys(CATS).forEach(cat=>{h+=`<button class="btn ${cat===TABCAT?'primary':''}" onclick="setTabCat('${cat}')">${CATS[cat].name}</button>`;});
+  h+=`<button class="btn" onclick="exportTabel()">⬇ Eksport</button></div>`;
+  h+=`<div class="hint">Ish kunlari <b>+</b> (kelgan) deb belgilangan. Katakka bosib <b>+</b> → <b>B</b> (kelmagan) → <b>K</b> (kasal) → <b>T</b> (ta'til) aylantiring. <b>D</b> — dam olish kuni (o'zgarmaydi). Kelgan kunlar avtomatik sanaladi, maosh esa <b>kelgan ÷ norma</b> bo'yicha hisoblanadi. Norma: <b>${NORM}</b> kun (Sozlamalarda o'zgartiriladi).</div>`;
+  h+=`<div class="tablewrap"><table class="tabel"><thead><tr><th style="width:34px">№</th><th style="min-width:190px;text-align:left">F.I.SH.</th>`;
+  for(let d=1;d<=D;d++){const we=isWE(y,m1,d);h+=`<th class="d ${we?'we':''}">${d}<br><small>${WD[dow(y,m1,d)]}</small></th>`;}
+  h+=`<th>Kelgan</th><th>Norma</th><th>Davomat</th></tr></thead><tbody>`;
+  if(!list.length)h+=`<tr><td colspan="${D+5}" style="text-align:center;padding:16px;color:var(--muted)">Bu bo'limda xodim yo'q.</td></tr>`;
+  list.forEach((e,i)=>{const kel=countPlus(e.marks),ratio=NORM>0?kel/NORM:0;
+    h+=`<tr data-id="${e.id}"><td class="idx">${i+1}</td><td class="txt"><div class="cell">${(e.fio||"—")}</div></td>`;
+    for(let d=1;d<=D;d++){const we=isWE(y,m1,d);const ch=e.marks[d-1]||(we?"D":"+");
+      const cls=we?"we":("m-"+(MKCLS[ch]||"p"));
+      h+=`<td class="mk ${cls}" ${(!we&&CANEDIT)?`onclick="cycleMark(${e.id},${d-1})"`:''}>${ch}</td>`;}
+    h+=`<td class="calc num"><div class="cell kelc">${kel}</div></td><td class="calc num"><div class="cell">${NORM}</div></td><td class="calc num"><div class="cell davc">${pct(ratio)}</div></td></tr>`;});
+  h+=`</tbody></table></div>`;
+  host.innerHTML=h;
+}
+function cycleMark(id,idx){if(!CANEDIT)return;const e=find(id);if(!e)return;
+  const y=curY(),m1=curM1(); if(isWE(y,m1,idx+1))return;
+  let arr=e.marks.split(""); let ni=(MKORDER.indexOf(arr[idx])+1); if(ni<=0||ni>=MKORDER.length)ni=(MKORDER.indexOf(arr[idx])+1+MKORDER.length)%MKORDER.length; ni=ni%MKORDER.length;
+  arr[idx]=MKORDER[ni]; e.marks=arr.join("");
+  const tr=document.querySelector(`#view-tabel tbody tr[data-id="${id}"]`);
+  if(tr){const tds=tr.querySelectorAll("td.mk")[idx];
+    if(tds){tds.textContent=arr[idx];tds.className="mk m-"+(MKCLS[arr[idx]]||"p");}
+    const kel=countPlus(e.marks),ratio=NORM>0?kel/NORM:0;
+    const kc=tr.querySelector(".kelc"),dc=tr.querySelector(".davc");
+    if(kc)kc.textContent=kel; if(dc)dc.textContent=pct(ratio);}
+  scheduleSave();
+}
+
 /* ------- Dashboard ------- */
 function renderDash(){
   let all={count:0,gross:0,ded:0,net:0},sb="",bars="",netByCat={};
-  Object.keys(CATS).forEach(cat=>{const t=totals(cat),n=data[cat].length;
+  Object.keys(CATS).forEach(cat=>{const t=totals(cat),n=(data[cat]||[]).length;
     all.count+=n;all.gross+=t.gross;all.ded+=t.ded;all.net+=t.net;netByCat[cat]=t.net;
     sb+=`<tr><td>${CATS[cat].name}</td><td>${n}</td><td>${fmt(t.gross)}</td><td>${fmt(t.tax)}</td><td>${fmt(t.inps)}</td><td>${fmt(t.union)}</td><td>${fmt(t.ded)}</td><td>${fmt(t.net)}</td></tr>`;});
   sb+=`<tr><td>JAMI</td><td>${all.count}</td><td>${fmt(all.gross)}</td><td>${fmt(sumF('tax'))}</td><td>${fmt(sumF('inps'))}</td><td>${fmt(sumF('union'))}</td><td>${fmt(all.ded)}</td><td>${fmt(all.net)}</td></tr>`;
@@ -352,16 +441,16 @@ function renderDash(){
   document.getElementById("kpiDed").textContent=fmt(all.ded)+" so'm";
   document.getElementById("kpiNet").textContent=fmt(all.net)+" so'm";
   const mx=Math.max(1,...Object.values(netByCat));
-  Object.keys(CATS).forEach(cat=>{const pct=(netByCat[cat]/mx*100)||0;
-    bars+=`<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span>${CATS[cat].name}</span><span style="font-weight:700">${fmt(netByCat[cat])} so'm</span></div><div class="bar"><span style="width:${pct}%;background:${CATS[cat].color}"></span></div></div>`;});
+  Object.keys(CATS).forEach(cat=>{const p=(netByCat[cat]/mx*100)||0;
+    bars+=`<div style="margin:8px 0"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span>${CATS[cat].name}</span><span style="font-weight:700">${fmt(netByCat[cat])} so'm</span></div><div class="bar"><span style="width:${p}%;background:${CATS[cat].color}"></span></div></div>`;});
   document.getElementById("bars").innerHTML=bars;
   document.getElementById("kpiPeriod").textContent=(UZM[+document.getElementById("month").value]||"")+" "+document.getElementById("year").value;
   syncBadges();
 }
 function sumF(f){let s=0;Object.keys(CATS).forEach(c=>s+=totals(c)[f]);return s;}
-function syncBadges(){Object.keys(CATS).forEach(c=>document.getElementById("b-"+c).textContent=data[c].length);}
+function syncBadges(){Object.keys(CATS).forEach(c=>{const b=document.getElementById("b-"+c);if(b)b.textContent=(data[c]||[]).length;});}
 
-/* ------- Hisob varaqasi ------- */
+/* ------- Hisob varaqasi (chek) ------- */
 function showSlip(cat,id){
   const e=find(id),r=calc(e),m=document.getElementById("month").value,y=document.getElementById("year").value;
   document.getElementById("slipBody").innerHTML=`
@@ -369,13 +458,14 @@ function showSlip(cat,id){
     <div class="muted">${document.getElementById("orgName").value} · ${UZM[+m]} ${y}</div>
     <div style="margin-top:14px;font-size:15px;font-weight:700">${e.fio||"(F.I.SH. kiritilmagan)"}</div>
     <div class="muted">${e.pos||"—"}${e.dept?" · "+e.dept:""}${e.deg&&e.deg!=="—"?" · "+e.deg:""} · Stavka: ${e.stavka}</div>
-    <div class="sec">Hisoblangan</div>
+    <div class="muted" style="margin-top:4px">Davomat: <b>${r.kel}</b> / ${r.norm} kun (${pct(r.ratio)})</div>
+    <div class="sec">Hisoblangan (to'liq oy)</div>
     <table>
       <tr><td class="l">Asosiy maosh (${e.stavka}×${fmt(e.base)})</td><td>${fmt(r.main)}</td></tr>
-      ${e.hours>0?`<tr><td class="l">Soatbay (${e.hours} soat × ${fmt(e.rate)})</td><td>${fmt(r.soatbay)}</td></tr>`:""}
-      <tr><td class="l">Ustamalar (${e.degp+e.stajp}%)</td><td>${fmt(r.ustama)}</td></tr>
-      <tr><td class="l">Mukofot / KPI</td><td>${fmt(e.bonus)}</td></tr>
-      <tr><td class="l" style="font-weight:700">Jami hisoblangan (brutto)</td><td style="font-weight:700">${fmt(r.gross)}</td></tr>
+      <tr><td class="l">Ustamalar summasi</td><td>${fmt(r.allowance)}</td></tr>
+      <tr><td class="l">Mukofot / KPI</td><td>${fmt(r.bonus)}</td></tr>
+      <tr><td class="l">To'liq oy jami</td><td>${fmt(r.grossFull)}</td></tr>
+      <tr><td class="l" style="font-weight:700">Jami hisoblangan (brutto, ${r.kel}/${r.norm} kun)</td><td style="font-weight:700">${fmt(r.gross)}</td></tr>
     </table>
     <div class="sec">Ushlanmalar</div>
     <table>
@@ -392,50 +482,70 @@ function showSlip(cat,id){
 function closeSlip(){document.getElementById("modal").classList.remove("open");}
 
 /* ------- Eksport / import ------- */
-const CSVCOLS=["Kategoriya","F.I.SH.","Lavozim","Bo'lim_kafedra","Daraja","Stavka","Lavozim_maoshi","Dars_soati","1_soat_narxi","Daraja_ustama_%","Staj_ustama_%","Mukofot","Avans","Asosiy_maosh","Soatbay","Ustama","Brutto","Soliq","INPS","Kasaba","Jami_ushlanma","Netto"];
+const CSVCOLS=["Kategoriya","F.I.SH.","Lavozim","Bo'lim_kafedra","Daraja","Stavka","Lavozim_maoshi","Ustamalar_summasi","Mukofot","Avans","Kelgan_kun","Norma","Asosiy_maosh","Brutto","Soliq","INPS","Kasaba","Jami_ushlanma","Netto"];
 function rowsCSV(cats){let rows=[CSVCOLS.join(";")];
-  cats.forEach(cat=>data[cat].forEach(e=>{const r=calc(e);
-    rows.push([CATS[cat].name,e.fio,e.pos,e.dept,e.deg,e.stavka,e.base,e.hours,e.rate,e.degp,e.stajp,e.bonus,e.advance,
-      Math.round(r.main),Math.round(r.soatbay),Math.round(r.ustama),Math.round(r.gross),Math.round(r.tax),Math.round(r.inps),Math.round(r.union),Math.round(r.ded),Math.round(r.net)].join(";"));}));
+  cats.forEach(cat=>(data[cat]||[]).forEach(e=>{const r=calc(e);
+    rows.push([CATS[cat].name,e.fio,e.pos,e.dept,e.deg,e.stavka,e.base,e.allowance,e.bonus,e.advance,r.kel,r.norm,
+      Math.round(r.main),Math.round(r.gross),Math.round(r.tax),Math.round(r.inps),Math.round(r.union),Math.round(r.ded),Math.round(r.net)].join(";"));}));
   return rows.join("\n");}
 function download(name,text){const blob=new Blob(["﻿"+text],{type:"text/csv;charset=utf-8;"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=name;a.click();}
-function exportAll(){download("Ish_haqi_"+document.getElementById("month").value+"_"+document.getElementById("year").value+".csv",rowsCSV(Object.keys(CATS)));}
-function exportCat(cat){download("Ish_haqi_"+cat+".csv",rowsCSV([cat]));}
+function exportAll(){download("Ish_haqi_"+CURKEY+".csv",rowsCSV(Object.keys(CATS)));}
+function exportCat(cat){download("Ish_haqi_"+cat+"_"+CURKEY+".csv",rowsCSV([cat]));}
+function exportTabel(){const y=curY(),m1=curM1(),D=daysInMonth(y,m1);
+  let head=["Kategoriya","F.I.SH.","Lavozim"];for(let d=1;d<=D;d++)head.push(d);head.push("Kelgan","Norma");
+  let rows=[head.join(";")];
+  (data[TABCAT]||[]).forEach(e=>{let row=[CATS[TABCAT].name,e.fio,e.pos];
+    for(let d=1;d<=D;d++)row.push(e.marks[d-1]||"");row.push(countPlus(e.marks),NORM);rows.push(row.join(";"));});
+  download("Tabel_"+TABCAT+"_"+CURKEY+".csv",rows.join("\n"));}
 function importCSV(ev){if(!CANEDIT){alert("Import faqat muharrir/admin uchun.");return;}
   const f=ev.target.files[0];if(!f)return;const rd=new FileReader();
   rd.onload=()=>{const lines=rd.result.replace(/^﻿/,"").split(/\r?\n/).filter(x=>x.trim());
     const byName={};Object.keys(CATS).forEach(c=>byName[CATS[c].name]=c);
     data={teachers:[],admin:[],tech:[]};
     lines.slice(1).forEach(l=>{const p=l.split(";");const cat=byName[p[0]]||"tech";
-      const e={id:uid++,fio:p[1]||"",pos:p[2]||"",dept:p[3]||"",deg:p[4]||"—",stavka:+p[5]||0,base:+p[6]||0,hours:+p[7]||0,rate:+p[8]||0,degp:+p[9]||0,stajp:+p[10]||0,bonus:+p[11]||0,advance:+p[12]||0};
+      const e={id:uid++,fio:p[1]||"",pos:p[2]||"",dept:p[3]||"",deg:p[4]||"—",stavka:+p[5]||0,base:+p[6]||0,allowance:+p[7]||0,bonus:+p[8]||0,advance:+p[9]||0,marks:genMarks(curY(),curM1())};
       if(e.pos&&!POSITIONS.includes(e.pos))POSITIONS.push(e.pos);
       if(e.dept&&!DEPARTMENTS.includes(e.dept))DEPARTMENTS.push(e.dept);
       data[cat].push(e);});
-    renderAll();scheduleSave();alert("Yuklandi: "+lines.slice(1).length+" ta yozuv.");};
+    if(CURKEY&&PERIODS[CURKEY])PERIODS[CURKEY].employees=data;
+    refreshCurrent();scheduleSave();alert("Yuklandi: "+lines.slice(1).length+" ta yozuv.");};
   rd.readAsText(f);}
 
 /* ------- Navigatsiya ------- */
-document.querySelectorAll("#nav a[data-view]").forEach(a=>a.onclick=()=>{
-  document.querySelectorAll("#nav a").forEach(x=>x.classList.remove("active"));a.classList.add("active");
-  const v=a.dataset.view;document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));
-  document.getElementById("view-"+v).classList.add("active");});
+function showView(v){
+  document.querySelectorAll("#nav a").forEach(x=>x.classList.remove("active"));
+  const link=document.querySelector(`#nav a[data-view="${v}"]`); if(link)link.classList.add("active");
+  document.querySelectorAll(".view").forEach(s=>s.classList.remove("active"));
+  const sec=document.getElementById("view-"+v); if(sec)sec.classList.add("active");
+  if(v==="dash")renderDash();
+  else if(v==="tabel")renderTabel();
+  else if(v==="teachers"||v==="admin"||v==="tech")renderCat(v);
+}
+document.querySelectorAll("#nav a[data-view]").forEach(a=>a.onclick=()=>showView(a.dataset.view));
+function refreshCurrent(){const active=document.querySelector(".view.active");const id=active?active.id.replace("view-",""):"dash";showView(id);renderDash();syncBadges();}
 
 /* Sozlamalar (faqat admin) */
 if(!ISADMIN){const ns=document.getElementById("nav-settings");if(ns)ns.style.display="none";}
 ["tax","inps","union","bhm"].forEach(k=>{const map={tax:"s-tax",inps:"s-inps",union:"s-union",bhm:"s-bhm"};
-  const el=document.getElementById(map[k]);el.value=settings[k];
+  const el=document.getElementById(map[k]);if(!el)return;el.value=settings[k];
   el.disabled=!ISADMIN;
-  el.addEventListener("input",()=>{settings[k]=parseFloat(el.value)||0;renderAll();saveSettings();});});
+  el.addEventListener("input",()=>{settings[k]=parseFloat(el.value)||0;refreshCurrent();saveSettings();});});
+function setNormInput(){const el=document.getElementById("s-norm");if(!el)return;el.value=NORM;el.disabled=!ISADMIN;}
+(function(){const el=document.getElementById("s-norm");if(el){el.disabled=!ISADMIN;
+  el.addEventListener("input",()=>{NORM=parseInt(el.value)||0;if(CURKEY&&PERIODS[CURKEY])PERIODS[CURKEY].norm=NORM;refreshCurrent();scheduleSave();});}})();
 
 function initPeriod(){const ms=document.getElementById("month"),ys=document.getElementById("year");
   UZM.forEach((m,i)=>ms.insertAdjacentHTML("beforeend",`<option value="${i}">${m}</option>`));
-  const now=new Date();ms.value=now.getMonth();
-  for(let y=2024;y<=2030;y++)ys.insertAdjacentHTML("beforeend",`<option ${y===now.getFullYear()?"selected":""}>${y}</option>`);
-  ms.onchange=ys.onchange=renderDash;}
+  for(let y=2024;y<=2032;y++)ys.insertAdjacentHTML("beforeend",`<option>${y}</option>`);
+  let dy=null,dm=null,best=-1;
+  Object.keys(PERIODS).forEach(k=>{const a=k.split("-");const yy=+a[0],mm=+a[1];const s=yy*12+mm;if(s>best){best=s;dy=yy;dm=mm;}});
+  const now=new Date(); if(dy===null){dy=now.getFullYear();dm=now.getMonth()+1;}
+  ms.value=dm-1; ys.value=dy;
+  ms.onchange=ys.onchange=()=>{loadPeriod();setNormInput();refreshCurrent();};}
 
-function renderAll(){["teachers","admin","tech"].forEach(renderCat);renderDash();}
-initPeriod();renderAll();
+initPeriod();loadPeriod();setNormInput();showView("dash");
+
 </script>
 </body>
 </html>
