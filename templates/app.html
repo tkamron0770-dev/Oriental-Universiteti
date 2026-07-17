@@ -118,6 +118,11 @@
   table.tabel td.mk.m-k{color:#b8860b;background:#fff6e0}
   table.tabel td.mk.m-t{color:#5b4bd1;background:#eeeafc}
   table.tabel td.mk:hover{box-shadow:inset 0 0 0 2px var(--accent2)}
+  /* Jadvalni ushlab surish (drag-to-scroll) */
+  .tablewrap{cursor:grab}
+  .tablewrap:active{cursor:grabbing}
+  .tablewrap input,.tablewrap select,.tablewrap button{cursor:auto}
+  .tablewrap table.tabel td.mk:not(.we){cursor:pointer}
 </style>
 </head>
 <body>
@@ -415,7 +420,7 @@ function renderTabel(){
   h+=`</tbody></table></div>`;
   host.innerHTML=h;
 }
-function cycleMark(id,idx){if(!CANEDIT)return;const e=find(id);if(!e)return;
+function cycleMark(id,idx){if(window.__dragMoved){window.__dragMoved=false;return;}if(!CANEDIT)return;const e=find(id);if(!e)return;
   const y=curY(),m1=curM1(); if(isWE(y,m1,idx+1))return;
   let arr=e.marks.split(""); let ni=(MKORDER.indexOf(arr[idx])+1); if(ni<=0||ni>=MKORDER.length)ni=(MKORDER.indexOf(arr[idx])+1+MKORDER.length)%MKORDER.length; ni=ni%MKORDER.length;
   arr[idx]=MKORDER[ni]; e.marks=arr.join("");
@@ -543,6 +548,31 @@ function initPeriod(){const ms=document.getElementById("month"),ys=document.getE
   const now=new Date(); if(dy===null){dy=now.getFullYear();dm=now.getMonth()+1;}
   ms.value=dm-1; ys.value=dy;
   ms.onchange=ys.onchange=()=>{loadPeriod();setNormInput();refreshCurrent();};}
+
+/* ------- Jadvalni sichqoncha bilan ushlab surish (drag-to-scroll) ------- */
+(function(){
+  let d=null;
+  document.addEventListener("mousedown",function(e){
+    const wrap=e.target.closest(".tablewrap");
+    if(!wrap)return;
+    if(e.target.closest("input,select,textarea,button,option,a"))return;
+    d={wrap:wrap,x:e.pageX,y:e.pageY,sl:wrap.scrollLeft,st:wrap.scrollTop,moved:false};
+    window.__dragMoved=false;
+  });
+  document.addEventListener("mousemove",function(e){
+    if(!d)return;
+    const dx=e.pageX-d.x, dy=e.pageY-d.y;
+    if(!d.moved && (Math.abs(dx)>4||Math.abs(dy)>4)){d.moved=true;window.__dragMoved=true;
+      document.body.style.userSelect="none"; d.wrap.style.cursor="grabbing";}
+    if(d.moved){ d.wrap.scrollLeft=d.sl-dx; d.wrap.scrollTop=d.st-dy; e.preventDefault(); }
+  });
+  document.addEventListener("mouseup",function(){
+    if(d){ d.wrap.style.cursor=""; }
+    document.body.style.userSelect="";
+    d=null;
+    setTimeout(function(){window.__dragMoved=false;},0);
+  });
+})();
 
 initPeriod();loadPeriod();setNormInput();showView("dash");
 
